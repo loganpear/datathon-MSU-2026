@@ -24,3 +24,6 @@ venv/
 # Organizer datasets remain local
 /data/raw/*
 !/data/raw/.gitkeep
+
+# Generated EDA outputs remain local
+/reports/eda/
