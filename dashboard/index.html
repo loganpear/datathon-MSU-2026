@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse Strategy Lab</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f3f0;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --border: #e2e1dc;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --muted: #7a7974;
+  --grid: #e8e7e2;
+  --axis: #b9b8b1;
+  --accent: #2a78d6;
+  --s-ads: #2a78d6;
+  --s-data: #eb6834;
+  --s-sub: #1baf7a;
+  --s-brand: #eda100;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --critical: #d03b3b;
+  --critical-text: #b42727;
+  --row-hl: #e6f0fc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --border: #2f2f2c;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --muted: #8f8e86;
+    --grid: #2a2a28;
+    --axis: #4a4a46;
+    --accent: #3987e5;
+    --s-ads: #3987e5;
+    --s-data: #d95926;
+    --s-sub: #199e70;
+    --s-brand: #c98500;
+    --good-text: #4fc94f;
+    --critical-text: #ef7a7a;
+    --row-hl: #1b2a3d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #2f2f2c;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8e86; --grid: #2a2a28; --axis: #4a4a46;
+  --accent: #3987e5; --s-ads: #3987e5; --s-data: #d95926; --s-sub: #199e70; --s-brand: #c98500;
+  --good-text: #4fc94f; --critical-text: #ef7a7a; --row-hl: #1b2a3d;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+[hidden] { display: none !important; }
+header {
+  padding: 18px 24px 14px; border-bottom: 1px solid var(--border); background: var(--surface);
+  display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; justify-content: space-between;
+}
+header h1 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+header p { margin: 2px 0 0; color: var(--text-2); }
+#status { color: var(--text-2); font-size: 13px; }
+#status.err { color: var(--critical-text); }
+
+.layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; padding: 20px 24px 40px; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 16px; } }
+
+aside {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+  align-self: start; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto;
+}
+@media (max-width: 900px) { aside { position: static; max-height: none; } }
+aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+aside h2:first-child { margin-top: 0; }
+.strat { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
+.strat input { width: 16px; height: 16px; accent-color: var(--accent); }
+.swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.warn { font-size: 12px; color: var(--critical-text); margin: 4px 0 0; }
+.ctl { margin: 10px 0 14px; }
+.ctl label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text-2); }
+.ctl label output { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+.ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+.ctl .hint { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text-2); margin: 8px 0; cursor: pointer; }
+.num-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.num-grid label { font-size: 12px; color: var(--text-2); display: flex; flex-direction: column; gap: 3px; }
+.num-grid input { width: 100%; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: inherit; }
+fieldset { border: 0; padding: 0; margin: 0; }
+fieldset:disabled { opacity: .45; }
+details summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+button {
+  font: inherit; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:hover { filter: brightness(1.05); }
+
+main { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; min-width: 0; }
+.card h3 { margin: 0 0 2px; font-size: 15px; }
+.card .sub { margin: 0 0 12px; color: var(--text-2); font-size: 13px; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.kpi .k { font-size: 12px; color: var(--text-2); }
+.kpi .v { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; margin-top: 2px; }
+.kpi .d { font-size: 12px; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; }
+.badge.ok { color: var(--good-text); }
+.badge.bad { color: var(--critical-text); }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-2); margin-bottom: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  white-space: nowrap; z-index: 5; color: var(--text);
+}
+.tip b { font-weight: 600; }
+.tip .row { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.tip .row span:last-child { font-variant-numeric: tabular-nums; margin-left: 12px; }
+
+.sweep-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sweep-head select { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); }
+.multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.multiples h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th { font-weight: 600; color: var(--text-2); font-size: 12px; }
+th:first-child, td:first-child { text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface-2); }
+tr.current { background: var(--row-hl); }
+.dots { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: middle; }
+.notes { font-size: 12px; color: var(--text-2); }
+.notes li { margin: 3px 0; }
+
+#loader { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+#drop { border: 2px dashed var(--border); border-radius: 10px; padding: 24px; width: 100%; text-align: center; color: var(--text-2); }
+#drop.over { border-color: var(--accent); }
+code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Pulse Strategy Lab</h1>
+    <p>Change the inputs on the left and see how revenue, runway, churn and trust respond. It reads the raw <code>all_users_combined.xlsx</code> and never changes it.</p>
+  </div>
+  <div id="status">Loading raw data…</div>
+</header>
+
+<div class="layout">
+  <aside id="controls">
+    <h2>Strategies (pick up to 2)</h2>
+    <label class="strat"><input type="checkbox" id="s_ads" checked><span class="swatch" style="background:var(--s-ads)"></span>1 · Targeted advertising</label>
+    <label class="strat"><input type="checkbox" id="s_data"><span class="swatch" style="background:var(--s-data)"></span>2 · Aggregated data licensing</label>
+    <label class="strat"><input type="checkbox" id="s_sub" checked><span class="swatch" style="background:var(--s-sub)"></span>3 · Premium subscription</label>
+    <label class="strat"><input type="checkbox" id="s_brand"><span class="swatch" style="background:var(--s-brand)"></span>4 · Brand insight partnerships</label>
+    <p class="warn" id="tooMany" hidden>The case allows at most 2 strategies. The numbers still compute, but this combination isn't eligible.</p>
+
+    <fieldset id="f_ads">
+      <h2>Who sees ads</h2>
+      <div class="ctl">
+        <label for="maxPriv">Max privacy sensitivity <output id="o_maxPriv"></output></label>
+        <input type="range" id="maxPriv" min="0" max="100" step="1" value="100">
+        <div class="hint">Skip users whose privacy_sensitivity_score is above this</div>
+      </div>
+      <div class="ctl">
+        <label for="maxAdChurn">Max ad churn risk <output id="o_maxAdChurn"></output></label>
+        <input type="range" id="maxAdChurn" min="0" max="0.85" step="0.01" value="0.85">
+        <div class="hint">Skip users whose ad_targeting_churn_risk is above this</div>
+      </div>
+      <div class="ctl">
+        <label for="maxTlAds">Max trust loss from ads <output id="o_maxTlAds"></output></label>
+        <input type="range" id="maxTlAds" min="0" max="100" step="1" value="100">
+      </div>
+      <div class="ctl">
+        <label for="minAdRev">Min ad revenue / user <output id="o_minAdRev"></output></label>
+        <input type="range" id="minAdRev" min="0" max="2" step="0.01" value="0">
+      </div>
+      <label class="check"><input type="checkbox" id="exclRestrictive"> Don't show ads to users with a “Restrictive” data-sharing attitude</label>
+    </fieldset>
+
+    <fieldset id="f_sub">
+      <h2>Subscription</h2>
+      <div class="ctl">
+        <label for="price">Monthly price <output id="o_price"></output></label>
+        <input type="range" id="price" min="0.49" max="11.99" step="0.25" value="4.99">
+      </div>
+      <label class="check"><input type="checkbox" id="overlap" checked> Subscribers stop seeing ads (ad revenue × (1 − adoption))</label>
+    </fieldset>
+
+    <details>
+      <summary>Case assumptions</summary>
+      <div class="num-grid">
+        <label>Starting cash ($)<input type="number" id="cash" value="14000000" step="100000"></label>
+        <label>Monthly burn ($)<input type="number" id="burn" value="1750000" step="50000"></label>
+        <label>Data $ per 100 score<input type="number" id="rateData" value="0.90" step="0.05"></label>
+        <label>Brand $ per 100 score<input type="number" id="rateBrand" value="0.55" step="0.05"></label>
+        <label>Scale (users per row)<input type="number" id="scale" value="160" step="1"></label>
+        <label>Runway target (months)<input type="number" id="target" value="18" step="1"></label>
+      </div>
+    </details>
+    <p style="margin-top:16px"><button id="reset">Reset to defaults</button></p>
+  </aside>
+
+  <main>
+    <section class="card" id="loader" hidden>
+      <h3>Load the raw workbook</h3>
+      <p class="sub" style="margin:0">The browser can't read <code>data/raw/</code> on its own when the page is opened as a file. Drop <code>all_users_combined.xlsx</code> here, or run <code>python3 -m http.server</code> from the repo root and open <code>http://localhost:8000/dashboard/</code>.</p>
+      <div id="drop">Drop <b>all_users_combined.xlsx</b> here, or <input type="file" id="file" accept=".xlsx"></div>
+    </section>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="two">
+      <div class="card">
+        <h3>Cash balance by month</h3>
+        <p class="sub">Starting cash, minus burn, plus revenue after churn. Dashed line = runway target.</p>
+        <div class="chart" id="cashChart"></div>
+      </div>
+      <div class="card">
+        <h3>Monthly revenue by strategy</h3>
+        <p class="sub">Platform-wide, after churn. Dashed line = $972K/mo needed for 18 months.</p>
+        <div class="legend" id="revLegend"></div>
+        <div class="chart" id="revChart"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="sweep-head">
+        <div>
+          <h3>What if this one input changes?</h3>
+          <p class="sub" style="margin:0">Keeps everything else as set and sweeps one input. The dot marks the current value.</p>
+        </div>
+        <select id="sweepVar"></select>
+      </div>
+      <div class="multiples" id="multiples"></div>
+    </section>
+
+    <section class="card">
+      <div class="sweep-head">
+        <div>
+          <h3>Every eligible strategy, side by side</h3>
+          <p class="sub" style="margin:0">All 4 single strategies and 6 pairs under your current inputs. Click a row to load it.</p>
+        </div>
+        <button class="primary" id="optimize">Find best settings for each</button>
+      </div>
+      <p class="sub" id="optNote" hidden></p>
+      <div class="table-wrap"><table id="combos"></table></div>
+    </section>
+
+    <section class="card notes">
+      <h3>How the numbers are calculated (case addendum §1)</h3>
+      <ul>
+        <li>Ads: sum of <code>predicted_ad_revenue_per_month</code> over the users shown ads. Data: <code>data_value_score</code>/100 × $0.90. Subscription: price × <code>subscription_adoption_probability</code> for users whose <code>max_subscription_price</code> ≥ price. Brand: <code>brand_insight_value_score</code>/100 × $0.55 × the ramp (1.3% in month 1, 18% in month 8, 100% from month 12).</li>
+        <li>Churn per user: ad churn if shown ads; data-sale churn for everyone if data is licensed; ad + data (capped at 1) if both; otherwise baseline. Churn is spread over months 1–3: revenue × (1 − churn × m/3), then × (1 − churn) from month 3 on.</li>
+        <li>Users lost = Σ churn × 160. Extra users lost = Σ (churn − baseline) × 160, compared with doing nothing. Avg trust loss = (Σ <code>trust_loss_if_ads</code> over ad users + Σ <code>trust_loss_if_data_sold</code> over all users if licensing) ÷ 20,000.</li>
+        <li>Runway: cash after each month = previous − burn + revenue. Counts the months before cash drops below $0, over a 120-month horizon.</li>
+        <li><b>Raw data, unchanged.</b> Blank cells stay blank and outliers stay in. When a value needed for a calculation is blank, that user just gets nothing from that piece: no ad revenue (and no ads), no subscription eligibility, or no trust-loss contribution. The other fields are used as they are.</li>
+        <li>“Find best settings” tries prices from $0.99 to $11.99 in $0.50 steps, privacy caps from 10 to 100 in steps of 10, and ad-churn caps from 0.10 to 0.85 in steps of 0.05. Among settings that reach the runway target it keeps the one with the fewest extra users lost. If none reach it, it keeps the longest runway.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const STRATS = [
+  { key: "ads",   name: "Ads",          long: "Targeted advertising",  color: "--s-ads" },
+  { key: "data",  name: "Data",         long: "Data licensing",        color: "--s-data" },
+  { key: "sub",   name: "Subscription", long: "Premium subscription",  color: "--s-sub" },
+  { key: "brand", name: "Brand",        long: "Brand insight",         color: "--s-brand" },
+];
+const RAMP = (() => {            // addendum §1.3, linear between checkpoints
+  const pts = [[0,0],[3,.04],[6,.11],[8,.18],[12,1]];
+  return m => {
+    if (m >= 12) return 1;
+    for (let i = 1; i < pts.length; i++) if (m <= pts[i][0]) {
+      const [x0,y0] = pts[i-1], [x1,y1] = pts[i];
+      return y0 + (y1 - y0) * (m - x0) / (x1 - x0);
+    }
+    return 1;
+  };
+})();
+const HORIZON = 120, CHART_MONTHS = 24;
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// ---------- data ----------
+let D = null, N = 0;
+const COLS = ["predicted_ad_revenue_per_month","privacy_sensitivity_score","ad_targeting_churn_risk",
+  "data_sale_churn_risk","baseline_churn_probability","trust_loss_if_ads","trust_loss_if_data_sold",
+  "max_subscription_price","subscription_adoption_probability","data_value_score",
+  "brand_insight_value_score","influence_score"];
+
+function ingest(rows) {
+  N = rows.length;
+  D = {};
+  for (const c of COLS) {
+    const a = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      const v = rows[i][c];
+      a[i] = (v === null || v === undefined || v === "") ? NaN : +v;
+    }
+    D[c] = a;
+  }
+  D.restrictive = new Uint8Array(N);
+  for (let i = 0; i < N; i++) D.restrictive[i] = rows[i].data_sharing_attitude === "Restrictive" ? 1 : 0;
+  $("status").textContent = `${N.toLocaleString()} users loaded from raw all_users_combined.xlsx (read-only)`;
+  $("loader").hidden = true;
+  renderAll();
+}
+function parseWorkbook(buf) {
+  const wb = XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets["all_users"];
+  if (!ws) throw new Error("No 'all_users' sheet found in workbook");
+  ingest(XLSX.utils.sheet_to_json(ws, { defval: null }));
+}
+function showLoader(msg) {
+  $("status").textContent = msg; $("status").className = "err"; $("loader").hidden = false;
+}
+async function autoload() {
+  if (typeof XLSX === "undefined") return showLoader("Couldn't load the spreadsheet reader from cdnjs. You need an internet connection.");
+  try {
+    const r = await fetch("../data/raw/all_users_combined.xlsx");
+    if (!r.ok) throw new Error(r.status);
+    parseWorkbook(new Uint8Array(await r.arrayBuffer()));
+  } catch (e) { showLoader("Raw file not auto-loaded. Choose it below."); }
+}
+function readFile(f) {
+  const fr = new FileReader();
+  fr.onload = () => { try { $("status").className = ""; parseWorkbook(new Uint8Array(fr.result)); } catch (e) { showLoader(e.message); } };
+  fr.readAsArrayBuffer(f);
+}
+$("file").addEventListener("change", e => e.target.files[0] && readFile(e.target.files[0]));
+const drop = $("drop");
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); e.dataTransfer.files[0] && readFile(e.dataTransfer.files[0]); });
+
+// ---------- config ----------
+const RANGES = {
+  maxPriv:    { label: "Max privacy sensitivity", fmt: v => (+v).toFixed(0), min: 0, max: 100, step: 2, strat: "ads" },
+  maxAdChurn: { label: "Max ad churn risk",       fmt: v => (+v).toFixed(2), min: 0, max: 0.85, step: 0.0125, strat: "ads" },
+  maxTlAds:   { label: "Max trust loss from ads", fmt: v => (+v).toFixed(0), min: 0, max: 100, step: 2, strat: "ads" },
+  minAdRev:   { label: "Min ad revenue / user",   fmt: v => "$" + (+v).toFixed(2), min: 0, max: 2, step: 0.04, strat: "ads" },
+  price:      { label: "Subscription price",      fmt: v => "$" + (+v).toFixed(2), min: 0.49, max: 11.99, step: 0.25, strat: "sub" },
+};
+const DEFAULTS = {};
+document.querySelectorAll("aside input").forEach(el => DEFAULTS[el.id] = el.type === "checkbox" ? el.checked : el.value);
+
+function readCfg() {
+  const n = id => +$(id).value;
+  return {
+    ads: $("s_ads").checked, data: $("s_data").checked, sub: $("s_sub").checked, brand: $("s_brand").checked,
+    maxPriv: n("maxPriv"), maxAdChurn: n("maxAdChurn"), maxTlAds: n("maxTlAds"), minAdRev: n("minAdRev"),
+    exclRestrictive: $("exclRestrictive").checked, price: n("price"), overlap: $("overlap").checked,
+    cash: n("cash"), burn: n("burn"), rateData: n("rateData"), rateBrand: n("rateBrand"),
+    scale: n("scale"), target: n("target"),
+  };
+}
+
+// ---------- model ----------
+// One pass over users -> per-strategy sums of full revenue (S) and revenue × churn (C).
+function evaluate(cfg) {
+  const S = { ads: 0, data: 0, sub: 0, brand: 0 }, C = { ads: 0, data: 0, sub: 0, brand: 0 };
+  let lost = 0, extra = 0, tl = 0, adUsers = 0, subs = 0, inflExtra = 0;
+  const ad = D.predicted_ad_revenue_per_month, pr = D.privacy_sensitivity_score, ac = D.ad_targeting_churn_risk,
+    dc = D.data_sale_churn_risk, bc = D.baseline_churn_probability, tla = D.trust_loss_if_ads,
+    tld = D.trust_loss_if_data_sold, mp = D.max_subscription_price, ap = D.subscription_adoption_probability,
+    dv = D.data_value_score, bi = D.brand_insight_value_score, inf = D.influence_score, rs = D.restrictive;
+  for (let i = 0; i < N; i++) {
+    const shown = cfg.ads && ad[i] === ad[i] && ad[i] >= cfg.minAdRev && pr[i] <= cfg.maxPriv &&
+      ac[i] <= cfg.maxAdChurn && !(cfg.exclRestrictive && rs[i]) && !(tla[i] > cfg.maxTlAds);
+    const c = shown ? (cfg.data ? Math.min(1, ac[i] + dc[i]) : ac[i]) : (cfg.data ? dc[i] : bc[i]);
+    let adRev = shown ? ad[i] : 0;
+    if (cfg.sub && mp[i] >= cfg.price) {
+      const r = ap[i] * cfg.price;
+      S.sub += r; C.sub += r * c; subs += ap[i];
+      if (cfg.overlap) adRev *= (1 - ap[i]);
+    }
+    if (shown) { S.ads += adRev; C.ads += adRev * c; adUsers++; if (tla[i] === tla[i]) tl += tla[i]; }
+    if (cfg.data) { const r = dv[i] / 100 * cfg.rateData; S.data += r; C.data += r * c; tl += tld[i]; }
+    if (cfg.brand) { const r = bi[i] / 100 * cfg.rateBrand; S.brand += r; C.brand += r * c; }
+    lost += c; extra += c - bc[i];
+    if (inf[i] >= 75) inflExtra += c - bc[i];
+  }
+  const k = cfg.scale;
+  const monthly = m => {
+    const f = Math.min(m, 3) / 3, out = {};
+    for (const s of STRATS) out[s.key] = (S[s.key] - C[s.key] * f) * k * (s.key === "brand" ? RAMP(m) : 1);
+    out.total = out.ads + out.data + out.sub + out.brand;
+    return out;
+  };
+  const months = [], cash = [cfg.cash];
+  let runway = null, c = cfg.cash;
+  for (let m = 1; m <= HORIZON; m++) {
+    const r = monthly(m);
+    c = c - cfg.burn + r.total;
+    if (m <= CHART_MONTHS) { months.push(r); cash.push(c); }
+    if (runway === null && c < 0) runway = m - 1;
+  }
+  if (runway === null) runway = Infinity;
+  let cash18 = cfg.cash;
+  for (let m = 1; m <= cfg.target; m++) cash18 += monthly(m).total - cfg.burn;
+  return {
+    months, cash, runway, cash18,
+    m1: months[0].total, steady: monthly(12).total,
+    lost: lost * k, extra: extra * k, inflExtra: inflExtra * k,
+    trust: tl / N, adUsers: adUsers * k, subs: subs * k,
+  };
+}
+
+// ---------- formatting ----------
+const money = v => {
+  const a = Math.abs(v), s = v < 0 ? "−" : "";
+  if (a >= 1e6) return s + "$" + (a / 1e6).toFixed(a >= 1e7 ? 1 : 2) + "M";
+  if (a >= 1e3) return s + "$" + (a / 1e3).toFixed(0) + "K";
+  return s + "$" + a.toFixed(0);
+};
+const people = v => { const a = Math.abs(v), s = v < 0 ? "−" : ""; return a >= 1e6 ? s + (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? s + (a / 1e3).toFixed(0) + "K" : s + a.toFixed(0); };
+const runwayFmt = r => r === Infinity ? "Self-funding" : r >= HORIZON ? HORIZON + "+ mo" : r + " mo";
+
+// ---------- SVG helpers ----------
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function niceTicks(lo, hi, n) {
+  if (lo === hi) { hi = lo + 1; }
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(x => x * mag).find(x => x >= step0);
+  const t0 = Math.floor(lo / step) * step, out = [];
+  for (let t = t0; t <= hi + step * 0.001; t += step) out.push(+t.toFixed(10));
+  if (out[out.length - 1] < hi) out.push(out[out.length - 1] + step);
+  return out;
+}
+function frame(host, W, H, m, yTicks, yFmt, xTicks, xScale, xFmt) {
+  host.innerHTML = "";
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img" }, host);
+  const y0 = yTicks[0], y1 = yTicks[yTicks.length - 1];
+  const ys = v => m.t + (H - m.t - m.b) * (1 - (v - y0) / (y1 - y0));
+  for (const t of yTicks) {
+    el("line", { x1: m.l, x2: W - m.r, y1: ys(t), y2: ys(t), stroke: cssVar(t === 0 ? "--axis" : "--grid"), "stroke-width": 1 }, svg);
+    el("text", { x: m.l - 6, y: ys(t) + 4, "text-anchor": "end" }, svg).textContent = yFmt(t);
+  }
+  for (const t of xTicks) el("text", { x: xScale(t), y: H - m.b + 16, "text-anchor": "middle" }, svg).textContent = xFmt(t);
+  return { svg, ys };
+}
+function tooltip(host) {
+  let t = host.querySelector(".tip");
+  if (!t) { t = document.createElement("div"); t.className = "tip"; t.hidden = true; host.appendChild(t); }
+  return t;
+}
+function placeTip(tip, host, px, py) {
+  tip.hidden = false;
+  const hw = host.clientWidth, tw = tip.offsetWidth;
+  let x = px + 14; if (x + tw > hw) x = px - tw - 14;
+  tip.style.left = Math.max(0, x) + "px"; tip.style.top = Math.max(0, py - 10) + "px";
+}
+function svgPoint(svg, evt) {
+  const p = svg.createSVGPoint(); p.x = evt.clientX; p.y = evt.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+// ---------- charts ----------
+function drawCash(host, res, cfg) {
+  const W = Math.max(300, host.clientWidth), H = 280, m = { t: 12, r: 16, b: 28, l: 56 };
+  const vals = res.cash, lo = Math.min(0, ...vals), hi = Math.max(...vals);
+  const yt = niceTicks(lo, hi, 5);
+  const xs = i => m.l + (W - m.l - m.r) * i / CHART_MONTHS;
+  const { svg, ys } = frame(host, W, H, m, yt, money, [0, 3, 6, 9, 12, 15, 18, 21, 24], xs, v => v === 0 ? "Start" : "M" + v);
+  if (cfg.target <= CHART_MONTHS) {
+    el("line", { x1: xs(cfg.target), x2: xs(cfg.target), y1: m.t, y2: H - m.b, stroke: cssVar("--muted"), "stroke-dasharray": "4 4" }, svg);
+    el("text", { x: xs(cfg.target) + 4, y: m.t + 10 }, svg).textContent = cfg.target + "-mo target";
+  }
+  // baseline (no strategy) cash for reference
+  const base = vals.map((_, i) => cfg.cash - cfg.burn * i);
+  const baseEnd = base.findIndex(v => v < yt[0]);
+  el("path", { d: base.slice(0, baseEnd < 0 ? base.length : baseEnd).map((v, i) => (i ? "L" : "M") + xs(i) + "," + ys(v)).join(""), fill: "none", stroke: cssVar("--axis"), "stroke-width": 1.5, "stroke-dasharray": "2 3" }, svg);
+  el("text", { x: xs(8) + 6, y: ys(base[8]) + 4 }, svg).textContent = "do nothing";
+  el("path", { d: vals.map((v, i) => (i ? "L" : "M") + xs(i) + "," + ys(v)).join(""), fill: "none", stroke: cssVar("--accent"), "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: cssVar("--axis"), visibility: "hidden" }, svg);
+  const dot = el("circle", { r: 4.5, fill: cssVar("--accent"), stroke: cssVar("--surface"), "stroke-width": 2, visibility: "hidden" }, svg);
+  const tip = tooltip(host);
+  const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" }, svg);
+  hit.addEventListener("mousemove", e => {
+    const p = svgPoint(svg, e), i = Math.max(0, Math.min(CHART_MONTHS, Math.round((p.x - m.l) / (W - m.l - m.r) * CHART_MONTHS)));
+    cross.setAttribute("x1", xs(i)); cross.setAttribute("x2", xs(i)); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", xs(i)); dot.setAttribute("cy", ys(vals[i])); dot.setAttribute("visibility", "visible");
+    tip.innerHTML = `<b>${i === 0 ? "Start" : "End of month " + i}</b><div class="row"><span>Cash</span><span>${money(vals[i])}</span></div>` +
+      (i ? `<div class="row"><span>Revenue that month</span><span>${money(res.months[i - 1].total)}</span></div>` : "");
+    const r = host.getBoundingClientRect();
+    placeTip(tip, host, e.clientX - r.left, e.clientY - r.top);
+  });
+  hit.addEventListener("mouseleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); });
+}
+
+function drawRevenue(host, res, cfg) {
+  const W = Math.max(300, host.clientWidth), H = 280, m = { t: 12, r: 16, b: 28, l: 56 };
+  const active = STRATS.filter(s => cfg[s.key]);
+  $("revLegend").innerHTML = active.map(s => `<span><span class="swatch" style="background:var(${s.color})"></span>${s.long}</span>`).join("") || "<span>No strategy selected</span>";
+  const need = cfg.burn - cfg.cash / cfg.target;
+  const hi = Math.max(need, ...res.months.map(r => r.total), 1);
+  const yt = niceTicks(0, hi, 5);
+  const n = CHART_MONTHS, bw = (W - m.l - m.r) / n;
+  const xs = i => m.l + bw * (i - 0.5);
+  const { svg, ys } = frame(host, W, H, m, yt, money, [1, 3, 6, 9, 12, 15, 18, 21, 24], xs, v => "M" + v);
+  const bars = [];
+  res.months.forEach((r, idx) => {
+    let acc = 0;
+    const g = el("g", {}, svg);
+    active.forEach((s, j) => {
+      const v = r[s.key]; if (v <= 0) return;
+      const yTop = ys(acc + v), yBot = ys(acc);
+      const top = j === active.length - 1 || active.slice(j + 1).every(t => r[t.key] <= 0);
+      const h = Math.max(0, yBot - yTop - (acc > 0 ? 2 : 0));
+      const x = m.l + bw * idx + bw * 0.18, w = bw * 0.64;
+      if (top && h > 4) {
+        const rr = Math.min(3, w / 2);
+        el("path", { d: `M${x},${yTop + h}V${yTop + rr}Q${x},${yTop} ${x + rr},${yTop}H${x + w - rr}Q${x + w},${yTop} ${x + w},${yTop + rr}V${yTop + h}Z`, fill: cssVar(s.color) }, g);
+      } else el("rect", { x, y: yTop, width: w, height: h, fill: cssVar(s.color) }, g);
+      acc += v;
+    });
+    bars.push(g);
+  });
+  el("line", { x1: m.l, x2: W - m.r, y1: ys(need), y2: ys(need), stroke: cssVar("--text-2"), "stroke-dasharray": "5 4", "stroke-width": 1.25 }, svg);
+  el("text", { x: W - m.r, y: ys(need) - 5, "text-anchor": "end", style: "fill:var(--text-2)" }, svg).textContent = "needed " + money(need);
+  const tip = tooltip(host);
+  const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" }, svg);
+  hit.addEventListener("mousemove", e => {
+    const p = svgPoint(svg, e), i = Math.max(0, Math.min(n - 1, Math.floor((p.x - m.l) / bw)));
+    bars.forEach((b, j) => b.setAttribute("opacity", j === i ? 1 : 0.45));
+    const r = res.months[i];
+    tip.innerHTML = `<b>Month ${i + 1}</b>` + active.map(s => `<div class="row"><span><span class="swatch" style="display:inline-block;background:var(${s.color})"></span> ${s.name}</span><span>${money(r[s.key])}</span></div>`).join("") +
+      `<div class="row"><span><b>Total</b></span><span><b>${money(r.total)}</b></span></div>`;
+    const rc = host.getBoundingClientRect();
+    placeTip(tip, host, e.clientX - rc.left, e.clientY - rc.top);
+  });
+  hit.addEventListener("mouseleave", () => { tip.hidden = true; bars.forEach(b => b.setAttribute("opacity", 1)); });
+}
+
+const METRICS = [
+  { key: "runway", label: "Runway (months)", fmt: v => v === Infinity ? "∞" : v.toFixed(0), val: r => Math.min(r.runway, HORIZON) },
+  { key: "m1", label: "Month-1 revenue", fmt: money, val: r => r.m1 },
+  { key: "steady", label: "Revenue at month 12+", fmt: money, val: r => r.steady },
+  { key: "extra", label: "Extra users lost vs doing nothing", fmt: people, val: r => r.extra },
+  { key: "trust", label: "Avg trust loss per user (pts)", fmt: v => v.toFixed(1), val: r => r.trust },
+  { key: "cash18", label: "Cash left at target month", fmt: money, val: r => r.cash18 },
+];
+
+function drawSweep(cfg) {
+  const key = $("sweepVar").value, R = RANGES[key];
+  const xsVals = [];
+  for (let v = R.min; v <= R.max + 1e-9; v += R.step) xsVals.push(+v.toFixed(4));
+  const results = xsVals.map(v => evaluate({ ...cfg, [key]: v }));
+  const cur = evaluate(cfg);
+  const host = $("multiples"); host.innerHTML = "";
+  const inactive = !cfg[R.strat];
+  if (inactive) {
+    const p = document.createElement("p"); p.className = "sub"; p.style.gridColumn = "1/-1";
+    p.textContent = `This input only matters when ${STRATS.find(s => s.key === R.strat).long} is turned on, so the lines are flat.`;
+    host.appendChild(p);
+  }
+  const hosts = METRICS.map(M => {
+    const box = document.createElement("div");
+    box.innerHTML = `<h4>${M.label}</h4>`;
+    const ch = document.createElement("div"); ch.className = "chart"; box.appendChild(ch); host.appendChild(box);
+    return ch;
+  });
+  METRICS.forEach((M, mi) => {
+    const ch = hosts[mi];
+    const W = Math.max(240, ch.clientWidth), H = 170, m = { t: 8, r: 10, b: 24, l: 50 };
+    const ys_ = results.map(M.val), curV = M.val(cur);
+    let lo = Math.min(...ys_, curV), hi = Math.max(...ys_, curV);
+    if (M.key === "runway") { lo = Math.min(lo, cfg.target); hi = Math.max(hi, cfg.target); }
+    if (M.key !== "cash18" && M.key !== "extra") lo = Math.min(0, lo);
+    if (hi - lo < Math.max(Math.abs(hi), 1) * 0.02) { const pad = Math.max(Math.abs(hi) * 0.05, 1); lo -= pad; hi += pad; }
+    const yt = niceTicks(lo, hi === lo ? lo + 1 : hi, 4);
+    const xs = v => m.l + (W - m.l - m.r) * (v - R.min) / (R.max - R.min);
+    const xt = niceTicks(R.min, R.max, 4).filter(t => t >= R.min - 1e-9 && t <= R.max + 1e-9);
+    const { svg, ys } = frame(ch, W, H, m, yt, M.fmt, xt, xs, R.fmt);
+    if (M.key === "runway") el("line", { x1: m.l, x2: W - m.r, y1: ys(cfg.target), y2: ys(cfg.target), stroke: cssVar("--text-2"), "stroke-dasharray": "5 4" }, svg);
+    if (M.key === "cash18") el("line", { x1: m.l, x2: W - m.r, y1: ys(0), y2: ys(0), stroke: cssVar("--text-2"), "stroke-dasharray": "5 4" }, svg);
+    el("path", { d: xsVals.map((v, i) => (i ? "L" : "M") + xs(v) + "," + ys(ys_[i])).join(""), fill: "none", stroke: cssVar("--accent"), "stroke-width": 2, "stroke-linejoin": "round", opacity: inactive ? 0.4 : 1 }, svg);
+    el("circle", { cx: xs(cfg[key]), cy: ys(curV), r: 5, fill: cssVar("--accent"), stroke: cssVar("--surface"), "stroke-width": 2 }, svg);
+    const tip = tooltip(ch);
+    const cross = el("line", { y1: m.t, y2: H - m.b, stroke: cssVar("--axis"), visibility: "hidden" }, svg);
+    const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent", style: "cursor:pointer" }, svg);
+    const idxAt = e => { const p = svgPoint(svg, e); return Math.max(0, Math.min(xsVals.length - 1, Math.round((p.x - m.l) / (W - m.l - m.r) * (xsVals.length - 1)))); };
+    hit.addEventListener("mousemove", e => {
+      const i = idxAt(e);
+      cross.setAttribute("x1", xs(xsVals[i])); cross.setAttribute("x2", xs(xsVals[i])); cross.setAttribute("visibility", "visible");
+      const r = results[i];
+      tip.innerHTML = `<b>${R.label}: ${R.fmt(xsVals[i])}</b>` + METRICS.map(mm => `<div class="row"><span>${mm.label}</span><span>${mm.key === "runway" ? runwayFmt(r.runway) : mm.fmt(mm.val(r))}</span></div>`).join("") + `<div style="color:var(--muted);margin-top:4px">Click to use this value</div>`;
+      const rc = ch.getBoundingClientRect();
+      placeTip(tip, ch, e.clientX - rc.left, e.clientY - rc.top);
+    });
+    hit.addEventListener("mouseleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+    hit.addEventListener("click", e => { $(key).value = xsVals[idxAt(e)]; renderAll(); });
+  });
+}
+
+// ---------- KPIs ----------
+function drawKpis(res, cfg) {
+  const ok = res.runway >= cfg.target;
+  const count = STRATS.filter(s => cfg[s.key]).length;
+  const tiles = [
+    { k: "Runway", v: runwayFmt(res.runway), d: `<span class="badge ${ok ? "ok" : "bad"}">${ok ? "✓ meets" : "✕ misses"} ${cfg.target}-mo target</span>` },
+    { k: "Month-1 revenue", v: money(res.m1), d: `needs ${money(cfg.burn - cfg.cash / cfg.target)}/mo` },
+    { k: "Revenue at month 12+", v: money(res.steady), d: "after churn settles" },
+    { k: "Cash left at month " + cfg.target, v: money(res.cash18), d: "month-by-month method" },
+    { k: "Users lost (3 mo)", v: people(res.lost), d: `${people(res.extra)} more than doing nothing` },
+    { k: "High-influence users lost", v: people(res.inflExtra), d: "extra, influence_score ≥ 75" },
+    { k: "Avg trust loss / user", v: res.trust.toFixed(1) + " pts", d: `${people(res.adUsers)} shown ads · ${people(res.subs)} subscribers` },
+  ];
+  $("kpis").innerHTML = tiles.map(t => `<div class="kpi"><div class="k">${t.k}</div><div class="v">${t.v}</div><div class="d">${t.d}</div></div>`).join("");
+  $("tooMany").hidden = count <= 2;
+}
+
+// ---------- combos ----------
+const COMBOS = [];
+STRATS.forEach((a, i) => { COMBOS.push([a.key]); STRATS.slice(i + 1).forEach(b => COMBOS.push([a.key, b.key])); });
+let optimized = null;
+const comboCfg = (cfg, keys) => ({ ...cfg, ads: keys.includes("ads"), data: keys.includes("data"), sub: keys.includes("sub"), brand: keys.includes("brand") });
+const comboName = keys => keys.map(k => STRATS.find(s => s.key === k).name).join(" + ");
+const dots = keys => `<span class="dots">${keys.map(k => `<span class="swatch" style="background:var(${STRATS.find(s => s.key === k).color})"></span>`).join("")}</span>`;
+
+function drawCombos(cfg) {
+  const curKeys = STRATS.filter(s => cfg[s.key]).map(s => s.key).join();
+  const rows = COMBOS.map(keys => {
+    const o = optimized && optimized.get(keys.join());
+    const c = o ? o.cfg : comboCfg(cfg, keys);
+    return { keys, c, r: o ? o.res : evaluate(c), o };
+  });
+  const setCol = optimized ? "<th>Best settings found</th>" : "";
+  $("combos").innerHTML = `<thead><tr><th>Strategy</th>${setCol}<th>Runway</th><th>Month-1 rev</th><th>Month 12+ rev</th><th>Cash at M${cfg.target}</th><th>Extra users lost</th><th>Avg trust loss</th></tr></thead><tbody>` +
+    rows.map((x, i) => {
+      const ok = x.r.runway >= cfg.target;
+      const settings = optimized ? `<td>${[x.keys.includes("ads") ? `privacy ≤ ${x.c.maxPriv}, ad churn ≤ ${x.c.maxAdChurn.toFixed(2)}` : "", x.keys.includes("sub") ? `price $${x.c.price.toFixed(2)}` : ""].filter(Boolean).join(" · ") || "—"}</td>` : "";
+      return `<tr data-i="${i}" class="${x.keys.join() === curKeys ? "current" : ""}"><td>${dots(x.keys)}${comboName(x.keys)}</td>${settings}<td><span class="badge ${ok ? "ok" : "bad"}">${ok ? "✓" : "✕"} ${runwayFmt(x.r.runway)}</span></td><td>${money(x.r.m1)}</td><td>${money(x.r.steady)}</td><td>${money(x.r.cash18)}</td><td>${people(x.r.extra)}</td><td>${x.r.trust.toFixed(1)}</td></tr>`;
+    }).join("") + "</tbody>";
+  $("combos").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => {
+    const x = rows[+tr.dataset.i];
+    STRATS.forEach(s => $("s_" + s.key).checked = x.keys.includes(s.key));
+    if (x.o) { $("maxPriv").value = x.c.maxPriv; $("maxAdChurn").value = x.c.maxAdChurn; $("price").value = x.c.price; }
+    renderAll(true);
+  }));
+}
+
+function optimize() {
+  const cfg = readCfg();
+  const prices = [], privs = [], churns = [];
+  for (let p = 0.99; p <= 11.99 + 1e-9; p += 0.5) prices.push(+p.toFixed(2));
+  for (let v = 10; v <= 100; v += 10) privs.push(v);
+  for (let v = 0.10; v <= 0.85 + 1e-9; v += 0.05) churns.push(+v.toFixed(2));
+  const out = new Map();
+  for (const keys of COMBOS) {
+    const base = comboCfg(cfg, keys);
+    const P = keys.includes("sub") ? prices : [cfg.price];
+    const V = keys.includes("ads") ? privs : [cfg.maxPriv];
+    const Ch = keys.includes("ads") ? churns : [cfg.maxAdChurn];
+    let best = null;
+    for (const price of P) for (const maxPriv of V) for (const maxAdChurn of Ch) {
+      const c = { ...base, price, maxPriv, maxAdChurn }, r = evaluate(c);
+      const meets = r.runway >= cfg.target;
+      const better = !best ||
+        (meets && !best.meets) ||
+        (meets && best.meets && (r.extra < best.res.extra - 1 || (Math.abs(r.extra - best.res.extra) <= 1 && r.cash18 > best.res.cash18))) ||
+        (!meets && !best.meets && (r.runway > best.res.runway || (r.runway === best.res.runway && r.cash18 > best.res.cash18)));
+      if (better) best = { cfg: c, res: r, meets };
+    }
+    out.set(keys.join(), best);
+  }
+  optimized = out;
+  const n = [...out.values()].filter(b => b.meets).length;
+  $("optNote").hidden = false;
+  $("optNote").innerHTML = `${n} of 10 options reach ${cfg.target} months. Each row shows the setting with the fewest extra users lost that still reaches the target, or the longest runway if none do. Change any input to go back to the live view.`;
+  drawCombos(cfg);
+}
+$("optimize").addEventListener("click", () => {
+  if (!D) return;
+  $("optimize").textContent = "Searching…"; $("optimize").disabled = true;
+  setTimeout(() => { optimize(); $("optimize").textContent = "Find best settings for each"; $("optimize").disabled = false; }, 20);
+});
+
+// ---------- wiring ----------
+function syncOutputs(cfg) {
+  for (const k in RANGES) $("o_" + k).textContent = RANGES[k].fmt(cfg[k]);
+  $("f_ads").disabled = !cfg.ads; $("f_sub").disabled = !cfg.sub;
+}
+function renderAll(keepOpt) {
+  const cfg = readCfg();
+  syncOutputs(cfg);
+  if (!D) return;
+  if (!keepOpt) { optimized = null; $("optNote").hidden = true; }
+  const res = evaluate(cfg);
+  drawKpis(res, cfg);
+  drawCash($("cashChart"), res, cfg);
+  drawRevenue($("revChart"), res, cfg);
+  drawSweep(cfg);
+  drawCombos(cfg);
+}
+$("sweepVar").innerHTML = Object.entries(RANGES).map(([k, r]) => `<option value="${k}">Sweep: ${r.label}</option>`).join("");
+$("sweepVar").value = "price";
+$("sweepVar").addEventListener("change", () => D && drawSweep(readCfg()));
+let raf = 0;
+document.querySelectorAll("aside input").forEach(e => e.addEventListener("input", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => renderAll()); }));
+$("reset").addEventListener("click", () => {
+  for (const id in DEFAULTS) { const e = $(id); if (e.type === "checkbox") e.checked = DEFAULTS[id]; else e.value = DEFAULTS[id]; }
+  renderAll();
+});
+let rz = 0;
+addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => renderAll(true), 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderAll(true));
+syncOutputs(readCfg());
+autoload();
+})();
+</script>
+</body>
+</html>
