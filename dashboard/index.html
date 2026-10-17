@@ -136,9 +136,12 @@ main { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 .tip .row span:last-child { font-variant-numeric: tabular-nums; margin-left: 12px; }
 
 .sweep-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.sweep-head select { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); }
+.sel { width: 100%; margin-top: 4px; }
+.sweep-head select, .sel { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); }
 .multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .multiples h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+#mlBody h4 { margin: 0 0 6px; font-size: 14px; }
+#mlBody .l { text-align: left; }
 
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -180,6 +183,16 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
     <fieldset id="f_ads">
       <h2>Who sees ads</h2>
       <div class="ctl">
+        <label for="targeting">Targeting method</label>
+        <select id="targeting" class="sel">
+          <option value="rules">Rules: use the sliders below</option>
+          <option value="users">Optimal per user: fewest users lost</option>
+          <option value="trust">Optimal per user: least trust lost</option>
+        </select>
+        <div class="hint" id="targetHint"></div>
+      </div>
+      <fieldset id="f_adRules">
+      <div class="ctl">
         <label for="maxPriv">Max privacy sensitivity <output id="o_maxPriv"></output></label>
         <input type="range" id="maxPriv" min="0" max="100" step="1" value="100">
         <div class="hint">Skip users whose privacy_sensitivity_score is above this</div>
@@ -198,6 +211,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
         <input type="range" id="minAdRev" min="0" max="2" step="0.01" value="0">
       </div>
       <label class="check"><input type="checkbox" id="exclRestrictive"> Don't show ads to users with a “Restrictive” data-sharing attitude</label>
+      </fieldset>
     </fieldset>
 
     <fieldset id="f_sub">
@@ -269,6 +283,12 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
       <div class="table-wrap"><table id="combos"></table></div>
     </section>
 
+    <section class="card" id="mlCard">
+      <h3>Machine-learning results</h3>
+      <p class="sub" id="mlSub">From <code>python -m src.ml_strategy</code>, run on Logan's cleaned data. Raw files are not edited.</p>
+      <div id="mlBody"></div>
+    </section>
+
     <section class="card notes">
       <h3>How the numbers are calculated (case addendum §1)</h3>
       <ul>
@@ -277,6 +297,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
         <li>Users lost = Σ churn × 160. Extra users lost = Σ (churn − baseline) × 160, compared with doing nothing. Avg trust loss = (Σ <code>trust_loss_if_ads</code> over ad users + Σ <code>trust_loss_if_data_sold</code> over all users if licensing) ÷ 20,000.</li>
         <li>Runway: cash after each month = previous − burn + revenue. Counts the months before cash drops below $0, over a 120-month horizon.</li>
         <li><b>Raw data, unchanged.</b> Blank cells stay blank and outliers stay in. When a value needed for a calculation is blank, that user just gets nothing from that piece: no ad revenue (and no ads), no subscription eligibility, or no trust-loss contribution. The other fields are used as they are.</li>
+        <li>Optimal per-user targeting looks at each user's revenue over the runway target against what showing them ads costs: extra churn, or trust points. It ranks users by revenue per unit of cost and adds them in that order until revenue covers the cash gap. Users whose ad churn is at or below their baseline are always included. If the target can't be reached, it shows ads to every user who adds revenue.</li>
         <li>“Find best settings” tries prices from $0.99 to $11.99 in $0.50 steps, privacy caps from 10 to 100 in steps of 10, and ad-churn caps from 0.10 to 0.85 in steps of 0.05. Among settings that reach the runway target it keeps the one with the fewest extra users lost. If none reach it, it keeps the longest runway.</li>
       </ul>
     </section>
@@ -375,10 +396,52 @@ function readCfg() {
   return {
     ads: $("s_ads").checked, data: $("s_data").checked, sub: $("s_sub").checked, brand: $("s_brand").checked,
     maxPriv: n("maxPriv"), maxAdChurn: n("maxAdChurn"), maxTlAds: n("maxTlAds"), minAdRev: n("minAdRev"),
-    exclRestrictive: $("exclRestrictive").checked, price: n("price"), overlap: $("overlap").checked,
+    exclRestrictive: $("exclRestrictive").checked, targeting: $("targeting").value, price: n("price"), overlap: $("overlap").checked,
     cash: n("cash"), burn: n("burn"), rateData: n("rateData"), rateBrand: n("rateBrand"),
     scale: n("scale"), target: n("target"),
   };
+}
+
+// ---------- optimal per-user targeting ----------
+// Gain = a user's revenue through the target month with ads minus without; cost = extra
+// churn (or trust points). Greedy by gain/cost until revenue covers the cash gap.
+const maskCache = new Map();
+function optimalMask(cfg) {
+  const key = [cfg.targeting, cfg.data, cfg.sub, cfg.brand, cfg.price, cfg.overlap, cfg.cash, cfg.burn,
+    cfg.rateData, cfg.rateBrand, cfg.scale, cfg.target].join();
+  if (maskCache.has(key)) return maskCache.get(key);
+  const T = Math.max(1, Math.round(cfg.target));
+  let w1 = 0, b0 = 0, b1 = 0;
+  for (let m = 1; m <= T; m++) { const f = Math.min(m, 3) / 3; w1 += f; b0 += RAMP(m); b1 += RAMP(m) * f; }
+  const ad = D.predicted_ad_revenue_per_month, ac = D.ad_targeting_churn_risk, dc = D.data_sale_churn_risk,
+    bc = D.baseline_churn_probability, tla = D.trust_loss_if_ads, mp = D.max_subscription_price,
+    ap = D.subscription_adoption_probability, dv = D.data_value_score, bi = D.brand_insight_value_score;
+  const gain = new Float64Array(N), cost = new Float64Array(N), mask = new Uint8Array(N);
+  let base = 0;
+  for (let i = 0; i < N; i++) {
+    const elig = cfg.sub && mp[i] >= cfg.price, subR = elig ? ap[i] * cfg.price : 0;
+    const flat0 = subR + (cfg.data ? dv[i] / 100 * cfg.rateData : 0), br = cfg.brand ? bi[i] / 100 * cfg.rateBrand : 0;
+    const c0 = cfg.data ? dc[i] : bc[i], v0 = flat0 * (T - c0 * w1) + br * (b0 - c0 * b1);
+    base += v0;
+    if (ad[i] !== ad[i]) { gain[i] = -Infinity; continue; }
+    const c1 = cfg.data ? Math.min(1, ac[i] + dc[i]) : ac[i];
+    const adR = elig && cfg.overlap ? ad[i] * (1 - ap[i]) : ad[i];
+    gain[i] = (flat0 + adR) * (T - c1 * w1) + br * (b0 - c1 * b1) - v0;
+    cost[i] = cfg.targeting === "users" ? c1 - c0 : (tla[i] === tla[i] ? tla[i] : 0);
+  }
+  const need = (T * cfg.burn - cfg.cash) / cfg.scale - base;
+  let have = 0;
+  const cand = [];
+  for (let i = 0; i < N; i++) {
+    if (!(gain[i] > 0)) continue;
+    if (cost[i] <= 0) { mask[i] = 1; have += gain[i]; } else cand.push(i);
+  }
+  cand.sort((a, b) => gain[b] / cost[b] - gain[a] / cost[a]);
+  for (const i of cand) { if (have >= need) break; mask[i] = 1; have += gain[i]; }
+  const out = { mask, feasible: have >= need };
+  if (maskCache.size > 300) maskCache.clear();
+  maskCache.set(key, out);
+  return out;
 }
 
 // ---------- model ----------
@@ -390,8 +453,9 @@ function evaluate(cfg) {
     dc = D.data_sale_churn_risk, bc = D.baseline_churn_probability, tla = D.trust_loss_if_ads,
     tld = D.trust_loss_if_data_sold, mp = D.max_subscription_price, ap = D.subscription_adoption_probability,
     dv = D.data_value_score, bi = D.brand_insight_value_score, inf = D.influence_score, rs = D.restrictive;
+  const om = cfg.ads && cfg.targeting !== "rules" ? optimalMask(cfg) : null;
   for (let i = 0; i < N; i++) {
-    const shown = cfg.ads && ad[i] === ad[i] && ad[i] >= cfg.minAdRev && pr[i] <= cfg.maxPriv &&
+    const shown = om ? om.mask[i] === 1 : cfg.ads && ad[i] === ad[i] && ad[i] >= cfg.minAdRev && pr[i] <= cfg.maxPriv &&
       ac[i] <= cfg.maxAdChurn && !(cfg.exclRestrictive && rs[i]) && !(tla[i] > cfg.maxTlAds);
     const c = shown ? (cfg.data ? Math.min(1, ac[i] + dc[i]) : ac[i]) : (cfg.data ? dc[i] : bc[i]);
     let adRev = shown ? ad[i] : 0;
@@ -429,6 +493,7 @@ function evaluate(cfg) {
     m1: months[0].total, steady: monthly(12).total,
     lost: lost * k, extra: extra * k, inflExtra: inflExtra * k,
     trust: tl / N, adUsers: adUsers * k, subs: subs * k,
+    optFeasible: om ? om.feasible : null,
   };
 }
 
@@ -580,10 +645,12 @@ function drawSweep(cfg) {
   const results = xsVals.map(v => evaluate({ ...cfg, [key]: v }));
   const cur = evaluate(cfg);
   const host = $("multiples"); host.innerHTML = "";
-  const inactive = !cfg[R.strat];
+  const ignored = R.strat === "ads" && cfg.targeting !== "rules";
+  const inactive = !cfg[R.strat] || ignored;
   if (inactive) {
     const p = document.createElement("p"); p.className = "sub"; p.style.gridColumn = "1/-1";
-    p.textContent = `This input only matters when ${STRATS.find(s => s.key === R.strat).long} is turned on, so the lines are flat.`;
+    p.textContent = ignored ? "Optimal per-user targeting ignores the rule sliders, so the lines are flat. Switch the targeting method to Rules to sweep this input."
+      : `This input only matters when ${STRATS.find(s => s.key === R.strat).long} is turned on, so the lines are flat.`;
     host.appendChild(p);
   }
   const hosts = METRICS.map(M => {
@@ -661,7 +728,7 @@ function drawCombos(cfg) {
   $("combos").innerHTML = `<thead><tr><th>Strategy</th>${setCol}<th>Runway</th><th>Month-1 rev</th><th>Month 12+ rev</th><th>Cash at M${cfg.target}</th><th>Extra users lost</th><th>Avg trust loss</th></tr></thead><tbody>` +
     rows.map((x, i) => {
       const ok = x.r.runway >= cfg.target;
-      const settings = optimized ? `<td>${[x.keys.includes("ads") ? `privacy ≤ ${x.c.maxPriv}, ad churn ≤ ${x.c.maxAdChurn.toFixed(2)}` : "", x.keys.includes("sub") ? `price $${x.c.price.toFixed(2)}` : ""].filter(Boolean).join(" · ") || "—"}</td>` : "";
+      const settings = optimized ? `<td>${[x.keys.includes("ads") ? (x.c.targeting === "rules" ? `privacy ≤ ${x.c.maxPriv}, ad churn ≤ ${x.c.maxAdChurn.toFixed(2)}` : "optimal per-user ads") : "", x.keys.includes("sub") ? `price $${x.c.price.toFixed(2)}` : ""].filter(Boolean).join(" · ") || "—"}</td>` : "";
       return `<tr data-i="${i}" class="${x.keys.join() === curKeys ? "current" : ""}"><td>${dots(x.keys)}${comboName(x.keys)}</td>${settings}<td><span class="badge ${ok ? "ok" : "bad"}">${ok ? "✓" : "✕"} ${runwayFmt(x.r.runway)}</span></td><td>${money(x.r.m1)}</td><td>${money(x.r.steady)}</td><td>${money(x.r.cash18)}</td><td>${people(x.r.extra)}</td><td>${x.r.trust.toFixed(1)}</td></tr>`;
     }).join("") + "</tbody>";
   $("combos").querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => {
@@ -682,8 +749,9 @@ function optimize() {
   for (const keys of COMBOS) {
     const base = comboCfg(cfg, keys);
     const P = keys.includes("sub") ? prices : [cfg.price];
-    const V = keys.includes("ads") ? privs : [cfg.maxPriv];
-    const Ch = keys.includes("ads") ? churns : [cfg.maxAdChurn];
+    const rules = keys.includes("ads") && cfg.targeting === "rules";
+    const V = rules ? privs : [cfg.maxPriv];
+    const Ch = rules ? churns : [cfg.maxAdChurn];
     let best = null;
     for (const price of P) for (const maxPriv of V) for (const maxAdChurn of Ch) {
       const c = { ...base, price, maxPriv, maxAdChurn }, r = evaluate(c);
@@ -712,6 +780,7 @@ $("optimize").addEventListener("click", () => {
 function syncOutputs(cfg) {
   for (const k in RANGES) $("o_" + k).textContent = RANGES[k].fmt(cfg[k]);
   $("f_ads").disabled = !cfg.ads; $("f_sub").disabled = !cfg.sub;
+  $("f_adRules").disabled = cfg.targeting !== "rules";
 }
 function renderAll(keepOpt) {
   const cfg = readCfg();
@@ -719,6 +788,9 @@ function renderAll(keepOpt) {
   if (!D) return;
   if (!keepOpt) { optimized = null; $("optNote").hidden = true; }
   const res = evaluate(cfg);
+  $("targetHint").textContent = res.optFeasible === null ? "" : res.optFeasible
+    ? `${people(res.adUsers)} users chosen for ads, one at a time`
+    : `${cfg.target} months can't be reached with these strategies, so every user who adds revenue is shown ads`;
   drawKpis(res, cfg);
   drawCash($("cashChart"), res, cfg);
   drawRevenue($("revChart"), res, cfg);
@@ -730,15 +802,64 @@ $("sweepVar").value = "price";
 $("sweepVar").addEventListener("change", () => D && drawSweep(readCfg()));
 let raf = 0;
 document.querySelectorAll("aside input").forEach(e => e.addEventListener("input", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => renderAll()); }));
+$("targeting").addEventListener("change", () => renderAll());
 $("reset").addEventListener("click", () => {
+  $("targeting").value = "rules";
   for (const id in DEFAULTS) { const e = $(id); if (e.type === "checkbox") e.checked = DEFAULTS[id]; else e.value = DEFAULTS[id]; }
   renderAll();
 });
 let rz = 0;
 addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => renderAll(true), 150); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderAll(true));
+// ---------- ML results ----------
+const pct = v => (v * 100).toFixed(0) + "%";
+async function loadMl() {
+  let res;
+  try {
+    const r = await fetch("../data/processed/ml/ml_results.json", { cache: "no-store" });
+    if (!r.ok) throw 0;
+    res = await r.json();
+  } catch (e) {
+    $("mlBody").innerHTML = `<p class="sub">No results yet. Run <code>python -m src.ml_strategy</code> from the repo root, then reload. Serve the page over http, not as a file.</p>`;
+    return;
+  }
+  const seg = res.segmentation, pol = res.policy, chosen = pol.candidates.find(c => c.depth === pol.chosen_depth);
+  const optRows = res.optimization.filter(r => r.feasible || r.runway_months !== undefined);
+  $("mlBody").innerHTML = `
+    <div class="two">
+      <div>
+        <h4>Recommended ad rule (${pol.combo})</h4>
+        <p class="sub">A depth-${chosen.depth} decision tree fitted to the optimal per-user choice. It agrees with it for <b>${(chosen.fidelity * 100).toFixed(1)}%</b> of users. Used as-is: <b>${chosen.result.runway_months} months</b> of runway, <b>${people(chosen.result.extra_users_lost)}</b> extra users lost.</p>
+        <p>Show ads only if ${chosen.rules.map(r => `<code>${r}</code>`).join(" <b>or</b> ")}</p>
+      </div>
+      <div>
+        <h4>Segments (k-means, k = ${seg.k}, chosen by silhouette)</h4>
+        <div class="table-wrap"><table><thead><tr><th>Segment</th><th>Users</th><th>Ad rev share</th><th>Privacy</th><th>Influence</th><th>Extra churn if ads</th></tr></thead><tbody>
+        ${seg.segments.map(s => `<tr><td>${s.label}</td><td>${people(s.users_platform)}</td><td>${pct(s.ad_revenue_share)}</td><td>${s.privacy_sensitivity_score.toFixed(0)}</td><td>${s.influence_score.toFixed(0)}</td><td>${s.extra_churn_if_ads >= 0 ? "+" : ""}${s.extra_churn_if_ads.toFixed(3)}</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+    </div>
+    <div class="two" style="margin-top:20px">
+      <div>
+        <h4>Optimal targeting compared with slider rules</h4>
+        <div class="table-wrap"><table><thead><tr><th>Strategy</th><th class="l">Method</th><th>Runway</th><th>Extra users lost</th><th>Avg trust loss</th></tr></thead><tbody>
+        ${optRows.map(r => `<tr><td>${r.combo}</td><td class="l">${r.objective === "users" ? "Optimal: fewest users lost" : r.objective === "trust" ? "Optimal: least trust lost" : "Best slider rule"}</td><td>${r.runway_months} mo</td><td>${people(r.extra_users_lost)}</td><td>${r.avg_trust_loss.toFixed(1)}</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+      <div>
+        <h4>Predicting risk and value for new users (gradient boosting, 5-fold CV)</h4>
+        <p class="sub">Uses only profile and behaviour fields, so it can score users who don't have these modeled fields yet.</p>
+        <div class="table-wrap"><table><thead><tr><th>Predicts</th><th>CV R²</th><th class="l">Top drivers</th></tr></thead><tbody>
+        ${res.predictive_models.map(m => `<tr><td>${m.target}</td><td>${m.cv_r2.toFixed(2)}</td><td class="l">${m.top_drivers.slice(0, 3).map(d => d.feature.replace(/_score$/, "")).join(", ")}</td></tr>`).join("")}
+        </tbody></table></div>
+      </div>
+    </div>`;
+  $("mlBody").querySelectorAll("tbody tr").forEach(tr => tr.style.cursor = "default");
+}
+
 syncOutputs(readCfg());
 autoload();
+loadMl();
 })();
 </script>
 </body>
