@@ -1,9 +1,12 @@
 # Local correspondence and original download archives
 /local/
 
-# Generated datasets
+# Generated datasets; publish only the reviewed outputs
 /data/processed/*
 !/data/processed/.gitkeep
+!/data/processed/all_users_cleaned.csv
+!/data/processed/cleaning_manifest.json
+!/data/processed/cleaning_quality_summary.csv
 
 # Python and notebooks
 __pycache__/
@@ -21,9 +24,13 @@ venv/
 .DS_Store
 ~$*
 
-# Organizer datasets remain local
+# Publish the original supplied datasets; ignore other raw additions
 /data/raw/*
 !/data/raw/.gitkeep
+!/data/raw/all_users_combined.xlsx
+!/data/raw/engagement_behavior.csv
+!/data/raw/monetization_potential.csv
+!/data/raw/risk_and_churn_metrics.csv
 
 # Generated EDA outputs remain local
 /reports/eda/

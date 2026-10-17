@@ -157,7 +157,7 @@ def run_cleaning(root: Path):
         'complete revenue coverage. Before choosing a strategy, compare conservative and imputed revenue scenarios and test sensitivity '
         'to extreme activity values. Unknown categories preserve users without inventing a demographic or attitude.', '',
         'The per-cell change log, field audit, input hash, and outlier thresholds are stored in `data/processed/`. '
-        'These user-level outputs remain local and are ignored by Git.', '',
+        'The cleaned dataset, field audit, and manifest are versioned; the per-cell change log stays local and is ignored by Git.', '',
     ]
     report = root / 'reports/cleaning_summary.md'
     report.parent.mkdir(parents=True, exist_ok=True)

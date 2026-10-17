@@ -8,8 +8,8 @@ Analyze Pulse's monetization options and recommend one strategy or a combination
 
 ```text
 docs/case/          Original case and addendum PDFs
-data/raw/           Original datasets (local only; ignored by Git)
-data/processed/     Cleaned and derived datasets (generated locally)
+data/raw/           Original organizer datasets
+data/processed/     Cleaned dataset, quality summary, and manifest
 notebooks/          Exploratory analysis and modeling notebooks
 src/                Reusable analysis code
 reports/figures/    Charts and visualizations
@@ -19,7 +19,7 @@ local/source/       Email transcript and original attachment ZIP (ignored by Git
 
 ## Getting started
 
-Datasets are kept local and are not distributed in this public repository. Obtain the original attachments from the organizers and place them in `data/raw/`.
+The original datasets are included in `data/raw/`. The cleaned dataset is in `data/processed/all_users_cleaned.csv`; use it for analysis and retain the original files unchanged.
 
 1. Read `docs/case/Datathon_2026_Case.pdf` and the accompanying addendum.
 2. Start with `data/raw/all_users_combined.xlsx` for the joined dataset, or join the CSV files on `user_id`.
@@ -41,7 +41,7 @@ Case materials and datasets were supplied by the competition organizers; this re
 
 ## Cleaning the data
 
-After placing the organizer attachments in `data/raw/` and installing `requirements-eda.txt`:
+After installing `requirements-eda.txt`:
 
 ```bash
 python -m src.clean_data
@@ -50,4 +50,4 @@ python -m unittest discover -s tests -v
 
 Review [`notebooks/02_data_cleaning.ipynb`](notebooks/02_data_cleaning.ipynb) for the workflow and [`reports/cleaning_summary.md`](reports/cleaning_summary.md) for aggregate results. Cleaning preserves every user, replaces invalid numeric cells with missing values, labels missing categories `Unknown`, and flags extreme likes without capping. No numeric imputation is applied.
 
-The cleaned dataset, per-cell change log, quality summary, and input manifest are written under `data/processed/` and stay local. Public notebooks contain code and explanations with outputs cleared; executed copies stay in `local/notebooks/`.
+The cleaned dataset, quality summary, and input manifest are included under `data/processed/`. The per-cell change log is generated there locally and remains ignored by Git. Public notebooks contain code and explanations with outputs cleared; executed copies stay in `local/notebooks/`.

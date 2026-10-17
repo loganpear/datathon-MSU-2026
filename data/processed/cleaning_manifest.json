@@ -1,0 +1,24 @@
+{
+  "input": "data/raw/all_users_combined.xlsx",
+  "sheet": "all_users",
+  "input_sha256": "c12f02f9622489a7595039ce08f0d817a13c16bed255497ba556728ccedc8fd2",
+  "rows_before": 20000,
+  "rows_after": 20000,
+  "original_fields": 30,
+  "output_fields_including_flags": 89,
+  "changed_cells": 459,
+  "users_changed": 457,
+  "numeric_imputation": "none",
+  "numeric_missing_after": 1039,
+  "category_missing_treatment": "Unknown",
+  "outlier_treatment": "flag only, retain original value",
+  "outlier_thresholds": {
+    "likes_per_week": {
+      "method": "1.5 * IQR",
+      "q1": 36.0,
+      "q3": 90.0,
+      "lower": -45.0,
+      "upper": 171.0
+    }
+  }
+}

@@ -23,4 +23,4 @@ Use `data/processed/all_users_cleaned.csv` for analysis. It includes the 30 orig
 
 Missing numeric values still need analysis-specific handling. Report observed counts and do not let sums silently imply complete revenue coverage. Before choosing a strategy, compare conservative and imputed revenue scenarios and test sensitivity to extreme activity values. Unknown categories preserve users without inventing a demographic or attitude.
 
-The per-cell change log, field audit, input hash, and outlier thresholds are stored in `data/processed/`. These user-level outputs remain local and are ignored by Git.
+The per-cell change log, field audit, input hash, and outlier thresholds are stored in `data/processed/`. The cleaned dataset, field audit, and manifest are versioned; the per-cell change log stays local and is ignored by Git.

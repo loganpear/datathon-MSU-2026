@@ -1,6 +1,6 @@
 # Data
 
-`raw/` preserves the original downloaded attachments locally. The datasets are ignored by Git and are not included in the public repository. Place organizer-provided copies here:
+`raw/` contains the original organizer-provided datasets, preserved unchanged:
 
 | File | Records | Columns |
 | --- | ---: | ---: |
@@ -13,7 +13,7 @@ The workbook contains `Start here` and `all_users` sheets. The addendum describe
 
 `user_profiles.csv` is mentioned in the case and email but was not among the six attachments. Do not treat a reconstructed file as an original organizer attachment.
 
-Preserve blanks and outliers in raw inputs. Record cleaning decisions and place generated files in `processed/`, which is ignored by Git.
+Preserve blanks and outliers in raw inputs. Record cleaning decisions and place generated files in `processed/`. Only the reviewed cleaned dataset, manifest, and quality summary are tracked; other generated files remain ignored.
 
 ## Cleaned outputs
 
@@ -24,6 +24,6 @@ Run `python -m src.clean_data` from the repository root to create:
 - `processed/cleaning_quality_summary.csv`: field-level missingness and validity counts.
 - `processed/cleaning_manifest.json`: source hash, policy details, and outlier thresholds.
 
-All these files stay local. Raw files are never overwritten. Flags ending in `__was_missing` identify original blanks; `__was_invalid` identifies numeric cells replaced by missing values; `__was_unrecognized` identifies unsupported category labels; `likes_per_week__iqr_outlier` flags values outside 1.5 times the interquartile range without changing them.
+The cleaned dataset, quality summary, and manifest are included in the repository. The detailed per-cell change log stays local. Raw files are never overwritten. Flags ending in `__was_missing` identify original blanks; `__was_invalid` identifies numeric cells replaced by missing values; `__was_unrecognized` identifies unsupported category labels; `likes_per_week__iqr_outlier` flags values outside 1.5 times the interquartile range without changing them.
 
 `Unknown` is an explicit missing category, not an imputed demographic value. Numeric gaps remain missing for analysis-specific treatment. Flag columns are metadata, not additional user characteristics to feed automatically into a model.
