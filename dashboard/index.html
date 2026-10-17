@@ -69,7 +69,9 @@ header {
 }
 header h1 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
 header p { margin: 2px 0 0; color: var(--text-2); }
-#status { color: var(--text-2); font-size: 13px; }
+#status { color: var(--text-2); font-size: 13px; flex-basis: 100%; text-align: right; }
+.source { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; justify-content: flex-end; font-size: 13px; color: var(--text-2); }
+.source select { font: inherit; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); max-width: 100%; }
 #status.err { color: var(--critical-text); }
 
 .layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; padding: 20px 24px 40px; }
@@ -166,9 +168,16 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 <header>
   <div>
     <h1>Pulse Strategy Lab</h1>
-    <p>Change the inputs on the left and see how revenue, runway, churn and trust respond. It reads the raw <code>all_users_combined.xlsx</code> and never changes it.</p>
+    <p>Change the inputs on the left and see how revenue, runway, churn and trust respond. It reads the raw workbook or Logan's cleaned CSV, and never changes either file.</p>
   </div>
-  <div id="status">Loading raw data…</div>
+  <div class="source">
+    <label for="source">Data</label>
+    <select id="source">
+      <option value="raw">Raw: data/raw/all_users_combined.xlsx</option>
+      <option value="clean">Cleaned: data/processed/all_users_cleaned.csv</option>
+    </select>
+    <div id="status">Loading data…</div>
+  </div>
 </header>
 
 <div class="layout">
@@ -239,9 +248,9 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 
   <main>
     <section class="card" id="loader" hidden>
-      <h3>Load the raw workbook</h3>
-      <p class="sub" style="margin:0">The browser can't read <code>data/raw/</code> on its own when the page is opened as a file. Drop <code>all_users_combined.xlsx</code> here, or run <code>python3 -m http.server</code> from the repo root and open <code>http://localhost:8000/dashboard/</code>.</p>
-      <div id="drop">Drop <b>all_users_combined.xlsx</b> here, or <input type="file" id="file" accept=".xlsx"></div>
+      <h3>Load the data</h3>
+      <p class="sub" style="margin:0">The browser can't read <code>data/</code> on its own when the page is opened as a file. Drop <code>all_users_combined.xlsx</code> or <code>all_users_cleaned.csv</code> here, or run <code>python3 -m http.server</code> from the repo root and open <code>http://localhost:8000/dashboard/</code>.</p>
+      <div id="drop">Drop <b>all_users_combined.xlsx</b> or <b>all_users_cleaned.csv</b> here, or <input type="file" id="file" accept=".xlsx,.csv"></div>
     </section>
 
     <section class="kpis" id="kpis"></section>
@@ -296,7 +305,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
         <li>Churn per user: ad churn if shown ads; data-sale churn for everyone if data is licensed; ad + data (capped at 1) if both; otherwise baseline. Churn is spread over months 1–3: revenue × (1 − churn × m/3), then × (1 − churn) from month 3 on.</li>
         <li>Users lost = Σ churn × 160. Extra users lost = Σ (churn − baseline) × 160, compared with doing nothing. Avg trust loss = (Σ <code>trust_loss_if_ads</code> over ad users + Σ <code>trust_loss_if_data_sold</code> over all users if licensing) ÷ 20,000.</li>
         <li>Runway: cash after each month = previous − burn + revenue. Counts the months before cash drops below $0, over a 120-month horizon.</li>
-        <li><b>Raw data, unchanged.</b> Blank cells stay blank and outliers stay in. When a value needed for a calculation is blank, that user just gets nothing from that piece: no ad revenue (and no ads), no subscription eligibility, or no trust-loss contribution. The other fields are used as they are.</li>
+        <li><b>Files are never changed.</b> Pick raw or cleaned data at the top right. Cleaning (<code>src/clean_data.py</code>) only touched fields this model doesn't use, plus labeling blank data-sharing attitudes “Unknown”, so both give the same numbers. Blank cells stay blank and outliers stay in. When a value needed for a calculation is blank, that user just gets nothing from that piece: no ad revenue (and no ads), no subscription eligibility, or no trust-loss contribution. The other fields are used as they are.</li>
         <li>Optimal per-user targeting looks at each user's revenue over the runway target against what showing them ads costs: extra churn, or trust points. It ranks users by revenue per unit of cost and adds them in that order until revenue covers the cash gap. Users whose ad churn is at or below their baseline are always included. If the target can't be reached, it shows ads to every user who adds revenue.</li>
         <li>“Find best settings” tries prices from $0.99 to $11.99 in $0.50 steps, privacy caps from 10 to 100 in steps of 10, and ad-churn caps from 0.10 to 0.85 in steps of 0.05. Among settings that reach the runway target it keeps the one with the fewest extra users lost. If none reach it, it keeps the longest runway.</li>
       </ul>
@@ -335,7 +344,7 @@ const COLS = ["predicted_ad_revenue_per_month","privacy_sensitivity_score","ad_t
   "max_subscription_price","subscription_adoption_probability","data_value_score",
   "brand_insight_value_score","influence_score"];
 
-function ingest(rows) {
+function ingest(rows, label) {
   N = rows.length;
   D = {};
   for (const c of COLS) {
@@ -348,32 +357,49 @@ function ingest(rows) {
   }
   D.restrictive = new Uint8Array(N);
   for (let i = 0; i < N; i++) D.restrictive[i] = rows[i].data_sharing_attitude === "Restrictive" ? 1 : 0;
-  $("status").textContent = `${N.toLocaleString()} users loaded from raw all_users_combined.xlsx (read-only)`;
+  maskCache.clear(); optimized = null;
+  $("status").className = "";
+  $("status").textContent = `${N.toLocaleString()} users loaded from ${label} (read-only)`;
   $("loader").hidden = true;
   renderAll();
 }
-function parseWorkbook(buf) {
-  const wb = XLSX.read(buf, { type: "array" });
-  const ws = wb.Sheets["all_users"];
+const SOURCES = {
+  raw:   { path: "../data/raw/all_users_combined.xlsx", label: "raw all_users_combined.xlsx" },
+  clean: { path: "../data/processed/all_users_cleaned.csv", label: "cleaned all_users_cleaned.csv" },
+};
+// Both formats go through SheetJS; the workbook's data lives on the all_users sheet.
+function parseData(buf, name, label) {
+  const csv = /\.csv$/i.test(name);
+  const wb = csv ? XLSX.read(new TextDecoder().decode(buf), { type: "string", raw: true }) : XLSX.read(buf, { type: "array" });
+  const ws = csv ? wb.Sheets[wb.SheetNames[0]] : wb.Sheets["all_users"];
   if (!ws) throw new Error("No 'all_users' sheet found in workbook");
-  ingest(XLSX.utils.sheet_to_json(ws, { defval: null }));
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+  if (!rows.length || !COLS.every(c => c in rows[0])) throw new Error(`${name} is missing columns the model needs`);
+  ingest(rows, label);
 }
 function showLoader(msg) {
   $("status").textContent = msg; $("status").className = "err"; $("loader").hidden = false;
 }
 async function autoload() {
   if (typeof XLSX === "undefined") return showLoader("Couldn't load the spreadsheet reader from cdnjs. You need an internet connection.");
+  const src = SOURCES[$("source").value];
+  $("status").className = ""; $("status").textContent = `Loading ${src.label}…`;
   try {
-    const r = await fetch("../data/raw/all_users_combined.xlsx");
+    const r = await fetch(src.path, { cache: "no-store" });
     if (!r.ok) throw new Error(r.status);
-    parseWorkbook(new Uint8Array(await r.arrayBuffer()));
-  } catch (e) { showLoader("Raw file not auto-loaded. Choose it below."); }
+    parseData(new Uint8Array(await r.arrayBuffer()), src.path, src.label);
+  } catch (e) { showLoader(`Couldn't auto-load ${src.label}. Choose the file below.`); }
 }
 function readFile(f) {
   const fr = new FileReader();
-  fr.onload = () => { try { $("status").className = ""; parseWorkbook(new Uint8Array(fr.result)); } catch (e) { showLoader(e.message); } };
+  fr.onload = () => { try { parseData(new Uint8Array(fr.result), f.name, f.name); } catch (e) { showLoader(e.message); } };
   fr.readAsArrayBuffer(f);
 }
+try { const v = localStorage.getItem("pulse-source"); if (v && SOURCES[v]) $("source").value = v; } catch (e) {}
+$("source").addEventListener("change", () => {
+  try { localStorage.setItem("pulse-source", $("source").value); } catch (e) {}
+  autoload();
+});
 $("file").addEventListener("change", e => e.target.files[0] && readFile(e.target.files[0]));
 const drop = $("drop");
 drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
