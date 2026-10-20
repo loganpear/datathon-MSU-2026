@@ -51,3 +51,16 @@ python -m unittest discover -s tests -v
 Review [`notebooks/02_data_cleaning.ipynb`](notebooks/02_data_cleaning.ipynb) for the workflow and [`reports/cleaning_summary.md`](reports/cleaning_summary.md) for aggregate results. Cleaning preserves every user, replaces invalid numeric cells with missing values, labels missing categories `Unknown`, and flags extreme likes without capping. No numeric imputation is applied.
 
 The cleaned dataset, quality summary, and input manifest are included under `data/processed/`. The per-cell change log is generated there locally and remains ignored by Git. Public notebooks contain code and explanations with outputs cleared; executed copies stay in `local/notebooks/`.
+
+## Strategy validation and sensitivity
+
+The independent case model compares all ten allowed strategy combinations and checks the monthly cash path against the existing model. It searches a disclosed grid of simple targeting rules, applies the consent gate for licensing, and tests the selected policy under downside assumptions.
+
+```bash
+python -m src.decision_analysis
+python -m src.decision_report
+```
+
+See [`reports/decision_review.md`](reports/decision_review.md), [`notebooks/03_strategy_validation.ipynb`](notebooks/03_strategy_validation.ipynb), and [`docs/decision_process.md`](docs/decision_process.md). The existing shared deck is linked in `reports/slides/speaker_notes.md`. See `reports/presentation_decision.md` for the selected segment proposal and its acceptance conditions. Results are modeled estimates, and the selected policy is sensitive to brand-contract timing and revenue assumptions.
+
+The deck’s segment proposal is a separate choice from the minimum-loss benchmark: it models 22 funded months at full ad acceptance, with an explicit acceptance and contract gate. Reproduce that check with `python -m src.consent_analysis`.

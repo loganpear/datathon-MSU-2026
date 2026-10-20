@@ -1,0 +1,94 @@
+{
+  "source_sha256": "c12f02f9622489a7595039ce08f0d817a13c16bed255497ba556728ccedc8fd2",
+  "sample_users": 20000,
+  "scale": 160,
+  "objective": "Minimize extra users lost among policies funding all first 18 months",
+  "consent_policy": "Licensing is benchmark-only; explicit consent is not recorded",
+  "selection_scope": "Simple ad-risk thresholds on disclosed grid; not a global optimum",
+  "selected_case_policy": {
+    "strategy": "Targeted ads + Brand insights",
+    "cap": 0.21,
+    "price": null,
+    "runway_months": 18,
+    "funded_through_18": true,
+    "cash_month18": 319881.7195753623,
+    "min_cash_through18": 319881.7195753623,
+    "revenue_month1": 672472.9598509155,
+    "revenue_month12": 1327341.540856,
+    "users_lost": 373681.92000000004,
+    "extra_users_lost": 32156.480000000003,
+    "trust_loss_per_user": 12.14344,
+    "users_shown_ads": 1244000,
+    "missing_ad_revenue_users": 60,
+    "missing_price_users": 100,
+    "missing_trust_among_ad_users": 25,
+    "recommendation_eligible": true,
+    "combo": "ads,brand"
+  },
+  "robust_alternative": {
+    "strategy": "Targeted ads + Subscription",
+    "cap": 0.47,
+    "price": 5.49,
+    "runway_months": 22,
+    "funded_through_18": true,
+    "cash_month18": 2613634.144709276,
+    "min_cash_through18": 2613634.144709276,
+    "revenue_month1": 1265998.7411119468,
+    "revenue_month12": 1103917.33533584,
+    "users_lost": 612569.9199999999,
+    "extra_users_lost": 271044.48000000004,
+    "trust_loss_per_user": 29.852490000000003,
+    "users_shown_ads": 2463520,
+    "missing_ad_revenue_users": 60,
+    "missing_price_users": 100,
+    "missing_trust_among_ad_users": 58,
+    "combo": "ads,sub",
+    "stress_min_cash": 2287.1877756118774
+  },
+  "buffered_alternative": null,
+  "cash_reserve_assumption": 500000,
+  "maximum_grid_downside_buffer": {
+    "strategy": "Targeted ads + Subscription",
+    "cap": 0.49,
+    "price": 5.49,
+    "runway_months": 22,
+    "funded_through_18": true,
+    "cash_month18": 2665926.1931033563,
+    "min_cash_through18": 2665926.1931033563,
+    "revenue_month1": 1276337.6809753599,
+    "revenue_month12": 1106146.64676608,
+    "users_lost": 635889.9199999999,
+    "extra_users_lost": 294364.48,
+    "trust_loss_per_user": 30.973094999999994,
+    "users_shown_ads": 2526080,
+    "missing_ad_revenue_users": 60,
+    "missing_price_users": 100,
+    "missing_trust_among_ad_users": 59,
+    "combo": "ads,sub",
+    "stress_min_cash": 6162.584059292451
+  },
+  "stress_assumptions": {
+    "Case assumptions": {},
+    "Revenue 10% lower": {
+      "revenue_factor": 0.9
+    },
+    "Brand contracts 3 months later": {
+      "brand_delay": 3
+    },
+    "Extra churn 25% higher": {
+      "extra_churn_factor": 1.25
+    },
+    "Combined downside": {
+      "revenue_factor": 0.9,
+      "brand_delay": 3,
+      "extra_churn_factor": 1.25
+    }
+  },
+  "limitations": [
+    "Modeled case estimates, not observed churn or causal effects",
+    "In-sample policy selection; scenario sensitivity is not deployment validation",
+    "No new users or additional operating costs per the addendum",
+    "Missing ad and subscription revenue contributes zero in the conservative case",
+    "Unknown consent is not inferred from data-sharing attitude"
+  ]
+}

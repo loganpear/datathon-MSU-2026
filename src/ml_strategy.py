@@ -169,8 +169,8 @@ def simulate(u: Users, show_ads, combo, price=4.99, overlap=True):
 def optimal_targeting(u: Users, combo, price=4.99, overlap=True, objective='users'):
     """Choose who sees ads so cumulative revenue through the target month covers
     the cash gap, at the least cost in extra churn (objective='users') or trust
-    points (objective='trust'). Greedy by revenue gained per unit of cost, which
-    is optimal for the linear relaxation and within one user of the integer optimum.
+    points (objective='trust'). Greedy by revenue gained per unit of cost. This is a feasible heuristic,
+    not a proof of the globally optimal integer policy.
     Returns the mask, or None if showing ads to everyone still falls short."""
     months = range(1, TARGET_MONTHS + 1)
     w0, w1 = TARGET_MONTHS, sum(churn_factor(m) for m in months)

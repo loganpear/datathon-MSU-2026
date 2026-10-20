@@ -25,3 +25,7 @@ The documented range checks follow section 2 of `docs/case/Datathon_2026_Case_Ad
 Run `02_data_cleaning.ipynb` after the initial EDA. It calls the same pipeline as `python -m src.clean_data`, writes cleaned data and per-cell logs to `data/processed/`, and shows aggregate quality comparisons. The raw EDA notebook intentionally continues to use raw inputs so the original issues remain visible.
 
 The first pass does not impute numeric values or cap statistical outliers. Select the original analytical fields explicitly; the cleaned dataset also contains provenance flags that should not be included automatically in correlations or models. See `reports/cleaning_summary.md` for the current results and remaining sensitivity analyses.
+
+## Strategy validation
+
+`03_strategy_validation.ipynb` reproduces the independent comparison, cash paths, and downside scenarios. It uses the supplied sample and case probabilities, with an explicit consent gate for licensing. All output tables are aggregate scenarios. The model targets provided case estimates and does not establish actual future churn or causal effects.
